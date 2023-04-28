@@ -4,6 +4,7 @@
 #include <unistd.h>     // for close()
 #include <iostream>     // for cout, cerr
 #include <cstring>      // for memset()
+#include "env.h"
 
 unsigned long long generateNumber(unsigned long long previous)
 {
@@ -15,7 +16,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        std::cout << "Usage: \\producer <quantity of numbers to generate>" << std::endl;
+        std::cout << "Usage: ./producer <quantity of numbers to generate>" << std::endl;
         return -1;
     }
 
@@ -26,21 +27,19 @@ int main(int argc, char *argv[])
         perror("Error creating socket");
         exit(1);
     }
-    int optval = 1;
-    setsockopt(socketProducer, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)); // allows the port to be reused without waiting for the OS to release it
+
     struct sockaddr_in serverAddress;
     std::memset(&serverAddress, 0, sizeof(serverAddress)); // set all bytes to 0
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1"); // sets the address.
-    serverAddress.sin_port = htons(8080);                   // sets the port
-    bind(socketProducer, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-    listen(socketProducer, 1);
+    serverAddress.sin_addr.s_addr = inet_addr(ADDRESS); // sets the address.
+    serverAddress.sin_port = htons(PORT);               // sets the port
 
-    struct sockaddr_in clientAddress;
-    socklen_t clientAddressSize = sizeof(clientAddress);
-    int clientSock = accept(socketProducer, (struct sockaddr *)&clientAddress, &clientAddressSize);
-
-    // connect(socketProducer, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    // Connecting to consumer
+    while (connect(socketProducer, (struct sockaddr *)&serverAddress, sizeof(serverAddress)))
+    {
+        perror("Error connecting to server, trying again in 3 seconds");
+        sleep(3);
+    }
 
     // Generate number and send them to consumer
     unsigned long long nPrevious = 1;
@@ -51,16 +50,15 @@ int main(int argc, char *argv[])
     {
         nPrevious = generateNumber(nPrevious);
         std::cout << "Sending " << nPrevious << std::endl;
-        send(clientSock, &nPrevious, sizeof(nPrevious), 0);
+        send(socketProducer, &nPrevious, sizeof(nPrevious), 0);
         // Waiting for response
-        recv(clientSock, &response, sizeof(response), 0);
+        recv(socketProducer, &response, sizeof(response), 0);
         std::cout << "Received response from consumer: " << nPrevious << " is " << (response ? "prime" : "not prime") << std::endl;
     }
 
     // Terminating
     unsigned long long terminate = 0;
-    send(clientSock, &terminate, sizeof(terminate), 0);
-    close(clientSock);
+    send(socketProducer, &terminate, sizeof(terminate), 0);
     close(socketProducer);
 
     return 0;

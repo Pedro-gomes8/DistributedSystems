@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        std::cout << "Usage: \\pipes <quantity of numbers to generate>" << std::endl;
+        std::cout << "Usage: ./pipes <quantity of numbers to generate>" << std::endl;
         return -1;
     }
     int fileDescriptors[2];
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     if (pid == 0)
     {
         // Child process
-        close(fileDescriptors[1]); // Close the writing end of the pipe, as we are only reading.
+        close(fileDescriptors[1]); // Closing the writing end of the pipe, as we are only reading.
         unsigned long long numberReceived;
 
         while (1)

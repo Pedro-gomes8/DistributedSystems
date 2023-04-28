@@ -3,6 +3,8 @@
 #include <sys/socket.h>
 #include <iostream>
 #include <cstring>
+#include "env.h"
+
 bool isPrime(unsigned long long n)
 {
     if (n <= 1)
@@ -30,25 +32,25 @@ int main()
         perror("Error creating socket");
         exit(1);
     }
-
+    // Setting up socket and server
+    int optval = 1;
+    setsockopt(socketConsumer, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)); // allows the port to be reused without waiting for the OS to release it
     struct sockaddr_in serverAddress;
-    std::memset(&serverAddress, 0, sizeof(serverAddress)); // set all bytes to 0
+    std::memset(&serverAddress, 0, sizeof(serverAddress)); // set all bytes to 0 to avoid initialization problems
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1"); // sets the address.
-    serverAddress.sin_port = htons(8080);                   // sets the port
-    // bind(socketConsumer, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-
-    // Connecting to producer
-    if (connect(socketConsumer, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
-    {
-        perror("Error connecting to server");
-        exit(1);
-    }
+    serverAddress.sin_addr.s_addr = inet_addr(ADDRESS); // sets the address.
+    serverAddress.sin_port = htons(PORT);               // sets the port
+    bind(socketConsumer, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    listen(socketConsumer, 1); // Allows only 1 connection
+    // Preparing to accept connection
+    struct sockaddr_in clientAddress;
+    socklen_t clientAddressSize = sizeof(clientAddress);
+    int clientSock = accept(socketConsumer, (struct sockaddr *)&clientAddress, &clientAddressSize); // get new socket, this one is used to communicate with the client
 
     unsigned long long numberReceived;
     while (1)
     {
-        recv(socketConsumer, &numberReceived, sizeof(numberReceived), 0);
+        recv(clientSock, &numberReceived, sizeof(numberReceived), 0);
         if (numberReceived == 0)
         {
             std::cout << "Received 0, exiting...\n";
@@ -56,9 +58,9 @@ int main()
         }
         bool isPrimeNumber = isPrime(numberReceived);
         std::cout << "Received " << numberReceived << " and it is " << (isPrimeNumber ? "prime" : "not prime") << ". Sending the answer to the producer." << std::endl;
-        send(socketConsumer, &isPrimeNumber, sizeof(isPrimeNumber), 0);
+        send(clientSock, &isPrimeNumber, sizeof(isPrimeNumber), 0);
     }
-
+    close(clientSock);
     close(socketConsumer);
     return 0;
 }

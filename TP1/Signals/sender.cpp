@@ -35,9 +35,9 @@ int main(int argc, char *argv[])
         std::cout << "Insert the desired signal to be sent:\n";
         std::cin >> signal;
     }
-    if (kill(pid, signal) == -1)
+    if (kill(pid, signal))
     {
-        std::perror("the PID argument is not valid");
+        std::perror("the PID or signal argument is not valid");
         exit(1);
     }
 

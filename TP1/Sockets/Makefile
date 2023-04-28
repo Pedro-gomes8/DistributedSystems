@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-Wall -std=c++11 -Wextra -pedantic
+CXXFLAGS=-Wall -std=c++11 -Wextra -pedantic -I include/laserpants/dotenv 
 
 all: consumer producer
 
