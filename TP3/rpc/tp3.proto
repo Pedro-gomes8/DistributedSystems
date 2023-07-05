@@ -1,0 +1,21 @@
+syntax = "proto3";
+package Tp3Rpc;
+
+option go_package = "./server";
+
+service Tp3RPC {
+    rpc Request(ClientMessage) returns (GrantedMessage){}
+    rpc Release(ClientMessage) returns (ReleaseResponse){}
+}
+
+message ClientMessage {
+    int32 ProcessId = 1;
+}
+message GrantedMessage {
+    int32 TargetProcessId = 1;
+    bool granted = 2;
+}
+message ReleaseResponse{
+    int32 TargetProcessId = 1;
+    bool status = 2;
+}
