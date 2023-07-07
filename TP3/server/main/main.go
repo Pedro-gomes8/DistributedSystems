@@ -14,9 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Mutex pra liberar o acesso ao processo. Note que eh um semaforo com pesos, pois assim a politica é fifo, permitindo a representacao da fila.
-// var mut = semaphore.NewWeighted(1)
-// var queueMutex sync.Mutex
 var (
 	port = flag.Int("port", 50051, "The server port")
 )
@@ -28,7 +25,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
+	fmt.Println("Initializing server")
 	grpcServer := grpc.NewServer()
+
+	// Core server data structure. Core functionality is in models/models.go
 	servBone := &models.Tp3RPCServer{
 		Mut:               semaphore.NewWeighted(1),
 		RWcurrMutexHolder: &sync.RWMutex{},
@@ -37,7 +37,10 @@ func main() {
 		ServedMut:         &sync.Mutex{}}
 
 	server.RegisterTp3RPCServer(grpcServer, servBone)
-	fmt.Println("initializing server")
+
+	// Create a thread to handle terminal input
 	go terminalParser.TerminalParser(grpcServer, servBone)
+
+	// Start serving
 	grpcServer.Serve(lis)
 }

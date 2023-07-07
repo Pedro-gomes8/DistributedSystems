@@ -1,11 +1,9 @@
-// Copyright 2017 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// This implementation is based on the official semaphore package. It was modified to handle the queue manipulation and to return the order of processes waiting for the critical section.
 
-// Package semaphore provides a weighted semaphore implementation.
-package semaphore // import "golang.org/x/sync/semaphore"
+package semaphore
 
 import (
+	"SD2023Tp3/server/toolsTP3/writelog"
 	"container/list"
 	"context"
 	"sync"
@@ -30,7 +28,7 @@ type Weighted struct {
 	size    int64
 	cur     int64
 	mu      sync.Mutex
-	waiters list.List
+	waiters list.List // This is the queue
 }
 
 // Acquire acquires the semaphore with a weight of n, blocking until resources
@@ -39,9 +37,17 @@ type Weighted struct {
 //
 // If ctx is already done, Acquire may still succeed without blocking.
 func (s *Weighted) Acquire(ctx context.Context, n int64, id int32) error {
+
+	// Grab lock to handle queue manipulation.
 	s.mu.Lock()
+
+	// Once the lock is grabbed, it is safe to write to the log file.
+	writelog.WriteLog("REQUEST", id)
+
+	// If there are enough tokens left and no other process is waiting, grant the request.
 	if s.size-s.cur >= n && s.waiters.Len() == 0 {
 		s.cur += n
+		writelog.WriteLog("GRANTED", id)
 		s.mu.Unlock()
 		return nil
 	}
@@ -52,10 +58,11 @@ func (s *Weighted) Acquire(ctx context.Context, n int64, id int32) error {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-
+	// Enqueue the request.
 	ready := make(chan struct{})
 	w := waiter{n: n, id: id, ready: ready}
 	elem := s.waiters.PushBack(w)
+	// Once enqueued, release queue mutex.
 	s.mu.Unlock()
 
 	select {
@@ -78,25 +85,15 @@ func (s *Weighted) Acquire(ctx context.Context, n int64, id int32) error {
 		s.mu.Unlock()
 		return err
 
+	// If another thread calls Release, it will notify the next process in the queue via this channel. Once notified, it is safe to return the Acquire call and grant the request.
 	case <-ready:
+		writelog.WriteLog("GRANTED", id)
 		return nil
 	}
 }
 
-// TryAcquire acquires the semaphore with a weight of n without blocking.
-// On success, returns true. On failure, returns false and leaves the semaphore unchanged.
-func (s *Weighted) TryAcquire(n int64) bool {
-	s.mu.Lock()
-	success := s.size-s.cur >= n && s.waiters.Len() == 0
-	if success {
-		s.cur += n
-	}
-	s.mu.Unlock()
-	return success
-}
-
 // Release releases the semaphore with a weight of n.
-func (s *Weighted) Release(n int64) {
+func (s *Weighted) Release(n int64, id int32) {
 	s.mu.Lock()
 	s.cur -= n
 	if s.cur < 0 {
@@ -104,9 +101,11 @@ func (s *Weighted) Release(n int64) {
 		panic("semaphore: released more than held")
 	}
 	s.notifyWaiters()
+	writelog.WriteLog("RELEASED", id)
 	s.mu.Unlock()
 }
 
+// ShowQueue returns the order of processes waiting for the critical section. It grabs the lock to read the queue.
 func (s *Weighted) ShowQueue() []int32 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -117,6 +116,7 @@ func (s *Weighted) ShowQueue() []int32 {
 	return waiters
 }
 
+// Notify via the 'ready' channel the next process in the queue
 func (s *Weighted) notifyWaiters() {
 	for {
 		next := s.waiters.Front()

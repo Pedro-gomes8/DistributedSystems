@@ -15,7 +15,6 @@ textPath = os.path.dirname(os.path.dirname(filePath))  # creates file in ../..
 
 
 def write(text):
-    print("write called")
     with open(f"{textPath}/results.txt", "a+") as f:
         f.write(text)
 
@@ -27,6 +26,7 @@ def handleClientRequests(requests, seconds, id, writefunc):
             message = tp3_pb2.ClientMessage(ProcessId=id)
             granted = stub.Request(message)
             if granted.granted:
+                print(f"Pid {id} granted message received")
                 writefunc(f"Process Id: {id} - {datetime.datetime.now()}\n")
                 time.sleep(seconds)
                 stub.Release(message)
