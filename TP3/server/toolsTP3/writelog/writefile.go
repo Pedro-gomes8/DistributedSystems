@@ -34,7 +34,7 @@ func WriteLog(messageType string, pId int32) {
 			panic(err)
 		}
 	}
-	if _, err := file.WriteString(messageType + "\t" + fmt.Sprint(pId) + "\t" + now.Format("2023-12-23 15:04:04.000000") + "\n"); err != nil {
+	if _, err := file.WriteString(messageType + "\t" + fmt.Sprint(pId) + "\t" + now.Format("2006-01-02 15:04:04.000000") + "\n"); err != nil {
 		panic(err)
 	}
 
