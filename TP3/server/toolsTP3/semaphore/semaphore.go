@@ -100,8 +100,8 @@ func (s *Weighted) Release(n int64, id int32) {
 		s.mu.Unlock()
 		panic("semaphore: released more than held")
 	}
-	s.notifyWaiters()
 	writelog.WriteLog("RELEASED", id)
+	s.notifyWaiters()
 	s.mu.Unlock()
 }
 
